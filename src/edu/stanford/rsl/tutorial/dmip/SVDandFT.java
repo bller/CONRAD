@@ -307,10 +307,6 @@ public class SVDandFT {
 		{
 			SimpleVector us = svd.getU().getCol(k).multipliedBy(svd.getSingularValues()[k]);
 			SimpleMatrix Iapprox = SimpleOperators.multiplyOuterProd(us, svd.getV().getCol(k));
-			
-			
-			
-	
 		
 			//Transfer back to grid
 			Grid2D imageRank = new Grid2D(image.getWidth(),image.getHeight());
@@ -326,9 +322,7 @@ public class SVDandFT {
 					else
 					{
 						imageRank.setAtIndex(j, i, imageRanks.getAtIndex(j, i, k-1) + (float) Iapprox.getElement(i, j));
-					}
-					
-					
+					}					
 				}
 			}
 			imageRanks.setSubGrid(k, imageRank);

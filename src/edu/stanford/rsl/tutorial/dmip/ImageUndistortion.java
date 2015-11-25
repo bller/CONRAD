@@ -28,18 +28,18 @@ public class ImageUndistortion{
 		
 		// TODO : adapt the paths
 		int caseNo = 0;
-		String filename = "C:/StanfordRepo/CONRAD/src/edu/stanford/rsl/tutorial/dmip/frame32.jpg";
+		String filename = "/proj/i5dmip/zi79moji/Reconstruction/CONRAD/src/edu/stanford/rsl/tutorial/dmip/frame32.jpg";
 		
 		if(caseNo == 0)
 		{
-			filename = "C:/StanfordRepo/CONRAD/src/edu/stanford/rsl/tutorial/dmip/frame32.jpg";
+			filename = "/proj/i5dmip/zi79moji/Reconstruction/CONRAD/src/edu/stanford/rsl/tutorial/dmip/frame32.jpg";
 		}
 		else if(caseNo == 1)
 		{
-			filename = "C:/StanfordRepo/CONRAD/src/edu/stanford/rsl/tutorial/dmip/undistorted.jpg";
+			filename = "/proj/i5dmip/zi79moji/Reconstruction/CONRAD/src/edu/stanford/rsl/tutorial/dmip/undistorted.jpg";
 		}else if(caseNo == 2)
 		{
-			filename = "C:/StanfordRepo/CONRAD/src/edu/stanford/rsl/tutorial/dmip/frame90.jpg";
+			filename = "/proj/i5dmip/zi79moji/Reconstruction/CONRAD/src/edu/stanford/rsl/tutorial/dmip/frame90.jpg";
 		}
 				
 		Grid2D image = ImageUtil.wrapImagePlus(IJ.openImage(filename)).getSubGrid(0);
@@ -92,7 +92,7 @@ public class ImageUndistortion{
 				Y.setAtIndex(i, j, j);
 			}
 		}
-		
+		//X.show("TesTTTT");
 		// 5. Create an artificial elliptical distortion field (R)
 		// a: spread among x-direction
 		// b: spread among y-direction
@@ -161,13 +161,13 @@ public class ImageUndistortion{
 		// Number of lattice points
 		// TODO: define the number of lattice points
 		// change the value of nx, ny
-		int nx = 0;
-		int ny = 0;
+		int nx = 8;
+		int ny = 8;
 		
 		// step size
 		// TODO: calculate the stepsize of the lattice points 
-		float fx = 0;
-		float fy = 0;
+		float fx = imSize / nx;
+		float fy = imSize / ny;
 		
 		// Fill the distorted and undistorted lattice points with the 
 		// grid coordinates from the preprocessing part.
@@ -181,10 +181,11 @@ public class ImageUndistortion{
 			for(int j = 0; j < nx; j++)
 			{
 				//TODO: sample the distorted and undistorted grid points at the lattice points
-				// TODO
-				// TODO
-				// TODO
-				// TODO
+				Xu2.setElementValue(j, i, X.getAtIndex((int) ((i+1)*fy), (int) ((j+1)*fx)));
+				Yu2.setElementValue(j, i, Y.getAtIndex((int) ((i+1)*fy), (int) ((j+1)*fx)));
+				Xd2.setElementValue(j, i, Xd.getAtIndex((int) ((i+1)*fy), (int) ((j+1)*fx)));
+				Yd2.setElementValue(j, i, Yd.getAtIndex((int) ((i+1)*fy), (int) ((j+1)*fx)));
+				
 			}
 		}
 		
@@ -198,11 +199,10 @@ public class ImageUndistortion{
 		
 		// Compute the distorted points:
 		// XD2 = XU2 + (XU2 - XD2)
-		// TODO:
-		// TODO:
-		// TODO:
-		// TODO:
-		
+		Xd2.multiplyBy(-1);
+		Yd2.multiplyBy(-1);
+		Xd2.add(Xu2, Xu2);
+		Yd2.add(Yu2, Yu2); //add ist schneller als + und addiert Matrizen, was das normale + nicht macht 
 		
 		// 2. Polynom of degree d
 		// Polynom of degree d -> (d-1): extrema
@@ -216,11 +216,11 @@ public class ImageUndistortion{
 		
 		// Number of Coefficients
 		// TODO:
-		int numCoeff = 0;
+		int numCoeff = (degree + 1) * (degree + 2)/2; 
 		
 		// Number of Correspondences
 		// TODO:
-		int numCorresp = 0;
+		int numCorresp = Xd2.getCols()*Xd2.getRows();
 		
 		// Print out of the used parameters
 		System.out.println("Polynom of degree: " + degree);
@@ -258,20 +258,22 @@ public class ImageUndistortion{
 				for(int j = 0; j <= (degree-i); j++)
 				{
 					// TODO:
-					
+					A.setElementValue(r, cc, Math.pow(Xu2_vec.getElement(r),i)*Math.pow(Yu2_vec.getElement(r),j));
+					cc++;//influence on each other pixel
 				}
 			}
 		}
 		
 		// Compute the pseudo-inverse of A with the help of the SVD (class: DecompositionSVD)
 		// TODO
-		// TODO
+		DecompositionSVD svd = new DecompositionSVD(A);
+		SimpleMatrix A_pseudoinverse = svd.inverse(true);
 		
 		
 		// Compute the distortion coefficients
 		// TODO
-		// TODO
-		
+		SimpleVector u_vec = SimpleOperators.multiply(A_pseudoinverse, Xd2_vec);
+		SimpleVector v_vec = SimpleOperators.multiply(A_pseudoinverse, Yd2_vec);
 		
 		// 4. Compute the distorted grid points (xDist, yDist) which are used to sample the
 		// distorted image to get the undistorted image
@@ -280,6 +282,7 @@ public class ImageUndistortion{
 		
 		Grid2D xDist = new Grid2D(imSize, imSize);  
 		Grid2D yDist = new Grid2D(imSize, imSize); 
+		
 		
 		for(int x = 0; x < imSize; x++)
 		{
@@ -291,13 +294,14 @@ public class ImageUndistortion{
 					for(int l = 0; l <= degree - k; l++)
 					{
 						// TODO
-						// TODO
-						// TODO
+						xDist.setAtIndex(x, y, (float)(xDist.getAtIndex(x, y)+u_vec.getElement(cc)*Math.pow(x, k)*Math.pow(y, l))); //Folie 31 Formel (7)
+						yDist.setAtIndex(x, y, (float)(yDist.getAtIndex(x, y)+v_vec.getElement(cc)*Math.pow(x, k)*Math.pow(y, l)));
+						cc++;
 					}
 				}
 			}
 		}
-		
+		//we have floating point coord, so we interpolate
 		Grid2D undistortedImage = new Grid2D(imSize, imSize);
 		
 		for(int i = 0; i < imSize; i++)
@@ -305,7 +309,8 @@ public class ImageUndistortion{
 			for(int j = 0; j < imSize; j++)
 			{
 				// TODO
-				// TODO
+				float val = InterpolationOperators.interpolateLinear(distortedImage, xDist.getAtIndex(i,j), yDist.getAtIndex(i, j));
+				undistortedImage.setAtIndex(i, j, val);
 			}
 		}
 		undistortedImage.show("Undistorted Image");
